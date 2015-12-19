@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""DBManager for Janitoo
+"""PKI Manager for Janitoo
 """
 __license__ = """
     This file is part of Janitoo.
@@ -25,7 +25,7 @@ __email__ = 'bibi21000@gmail.com'
 __copyright__ = "Copyright © 2013-2014-2015 Sébastien GALLET aka bibi21000"
 import warnings
 #~ warnings.filterwarnings("ignore")
-import sys, os
+import os, sys
 import time, datetime
 import socket
 import logging
@@ -36,17 +36,7 @@ import pkg_resources
 from ConfigParser import RawConfigParser as ConfigParser
 import argparse
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, scoped_session
-from alembic.script import ScriptDirectory as alScriptDirectory
-from alembic import command as alcommand
-from alembic.migration import MigrationContext
-
 from janitoo.options import JNTOptions
-from janitoo_db.base import Base, create_db_engine
-from janitoo_db.migrate import Config as alConfig, collect_configs
-
-import janitoo_db.models
 
 def jnt_parser():
     parser = argparse.ArgumentParser()
