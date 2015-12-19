@@ -89,8 +89,12 @@ setup(
     include_package_data=True,
     data_files = data_files,
     install_requires=[
+                    'janitoo',
                      'pki',
                     ],
+    dependency_links = [
+      'https://github.com/bibi21000/janitoo/archive/master.zip#egg=janitoo',
+    ],
     #~ entry_points = {
         #~ "janitoo.models": [
             #~ "janitoo_layouts = janitoo_layouts.models:extend",
