@@ -1,0 +1,150 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""DBManager for Janitoo
+"""
+__license__ = """
+    This file is part of Janitoo.
+
+    Janitoo is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Janitoo is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Janitoo. If not, see <http://www.gnu.org/licenses/>.
+
+"""
+__author__ = 'Sébastien GALLET aka bibi21000'
+__email__ = 'bibi21000@gmail.com'
+__copyright__ = "Copyright © 2013-2014-2015 Sébastien GALLET aka bibi21000"
+import warnings
+#~ warnings.filterwarnings("ignore")
+import sys, os
+import time, datetime
+import socket
+import logging
+import shutil
+
+import pkg_resources
+#We must NOT subsitute % in value for alembic (database section)
+from ConfigParser import RawConfigParser as ConfigParser
+import argparse
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, scoped_session
+from alembic.script import ScriptDirectory as alScriptDirectory
+from alembic import command as alcommand
+from alembic.migration import MigrationContext
+
+from janitoo.options import JNTOptions
+from janitoo_db.base import Base, create_db_engine
+from janitoo_db.migrate import Config as alConfig, collect_configs
+
+import janitoo_db.models
+
+def jnt_parser():
+    parser = argparse.ArgumentParser()
+
+    subparsers = parser.add_subparsers(dest='command', help='commands')
+
+    collect_parser = subparsers.add_parser('collect', help='Collect and show entry_points for models')
+
+    version_locations_parser = subparsers.add_parser('version_locations', help='Get a static representation of the version_locations to include in an alembic.ini file')
+    version_locations_parser.add_argument('-u', '--url', action='store', help='The db url to connect to', default="sqlite:////tmp/janitoo_dbman.sqlite")
+
+    initdb_parser = subparsers.add_parser('initdb', help='Initialise database using alembic migration scripts')
+    initdb_parser.add_argument('-u', '--url', action='store', help='The db url to connect to', default="sqlite:////tmp/janitoo_dbman.sqlite")
+
+    versiondb_parser = subparsers.add_parser('versiondb', help='Return the database version using alembic migration context')
+    versiondb_parser.add_argument('-u', '--url', action='store', help='The db url to connect to', default="sqlite:////tmp/janitoo_dbman.sqlite")
+
+    checkdb_parser = subparsers.add_parser('checkdb', help='Check the database version agaisnt heads version')
+    checkdb_parser.add_argument('-u', '--url', action='store', help='The db url to connect to', default="sqlite:////tmp/janitoo_dbman.sqlite")
+
+    dropdb_parser = subparsers.add_parser('dropdb', help='Drop database')
+    dropdb_parser.add_argument('-u', '--url', action='store', help='The db url to connect to', default="sqlite:////tmp/janitoo_dbman.sqlite")
+
+    createdb_parser = subparsers.add_parser('createdb', help='Create database using models')
+    createdb_parser.add_argument('-u', '--url', action='store', help='The db url to connect to', default="sqlite:////tmp/janitoo_dbman.sqlite")
+
+    generate_parser = subparsers.add_parser('generate', help='Generate the migration script')
+    generate_parser.add_argument('-u', '--url', action='store', help='The db url to connect to', default="sqlite:////tmp/janitoo_dbman.sqlite")
+    generate_parser.add_argument('--head', action='store', help='The head to use (ie janitoo)', default="janitoo")
+    generate_parser.add_argument('-m', '--message', action='store', help='The message for the script name', default="A friendly message")
+
+    heads_parser = subparsers.add_parser('heads', help='Show heads')
+    heads_parser.add_argument('-u', '--url', action='store', help='The db url to connect to', default="sqlite:////tmp/janitoo_dbman.sqlite")
+
+    branches_parser = subparsers.add_parser('branches', help='Show branches')
+    branches_parser.add_argument('-u', '--url', action='store', help='The db url to connect to', default="sqlite:////tmp/janitoo_dbman.sqlite")
+
+    history_parser = subparsers.add_parser('history', help='Show history')
+    history_parser.add_argument('-u', '--url', action='store', help='The db url to connect to', default="sqlite:////tmp/janitoo_dbman.sqlite")
+
+    upgrade_parser = subparsers.add_parser('upgrade', help='Upgrade the database')
+    upgrade_parser.add_argument('-u', '--url', action='store', help='The db url to connect to', default="sqlite:////tmp/janitoo_dbman.sqlite")
+
+    downgrade_parser = subparsers.add_parser('downgrade', help='Downgrade the database')
+    downgrade_parser.add_argument('-u', '--url', action='store', help='The db url to connect to', default="sqlite:////tmp/janitoo_dbman.sqlite")
+
+    current_parser = subparsers.add_parser('current', help='Get the current version of the database')
+    current_parser.add_argument('-u', '--url', action='store', help='The db url to connect to', default="sqlite:////tmp/janitoo_dbman.sqlite")
+    current_parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output', default="false")
+
+    show_parser = subparsers.add_parser('show', help='Show the revision denoted by the given symbol')
+    show_parser.add_argument('-u', '--url', action='store', help='The db url to connect to', default="sqlite:////tmp/janitoo_dbman.sqlite")
+    show_parser.add_argument('-r', '--revision', action='store', help='The revision identifier', default="heads")
+
+    history_parser = subparsers.add_parser('history', help='Show the history of the revision denoted by the given symbol')
+    history_parser.add_argument('-u', '--url', action='store', help='The db url to connect to', default="sqlite:////tmp/janitoo_dbman.sqlite")
+    history_parser.add_argument('-r', '--revrange', action='store', help="History range requires [start]:[end], [start]:, or :[end]", default=":")
+    history_parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output', default="false")
+
+    return parser
+
+def main():
+    parser = jnt_parser()
+    args = parser.parse_args()
+    if args.command == "initdb":
+        alConfig(url=args.url).initdb()
+    elif args.command == "createdb":
+        engine = create_engine(url=args.url)
+        Base.metadata.create_all(bind=engine)
+    elif args.command == "versiondb":
+        print alConfig(url=args.url).versiondb()
+    elif args.command == "checkdb":
+        print alConfig(url=args.url).checkdb()
+    elif args.command == "dropdb":
+        engine = create_engine(url=args.url)
+        Base.metadata.drop_all(bind=engine)
+    elif args.command == "collect":
+        for entrypoint in pkg_resources.iter_entry_points(group='janitoo.models'):
+            print("Found extension %s provided by module %s"%(entrypoint.name, entrypoint.module_name))
+    elif args.command == "version_locations":
+        config = alConfig(url=args.url)
+        print "version_locations = %s" % config.get_main_option("version_locations")
+    elif args.command == "heads":
+        print alConfig(url=args.url).heads(verbose=True)
+    elif args.command == "branches":
+        alcommand.branches(alConfig(url=args.url), verbose=True)
+    elif args.command == "upgrade":
+        alConfig(url=args.url).upgrade(revision='heads')
+    elif args.command == "downgrade":
+        alConfig(url=args.url).downgrade(revision='base')
+    elif args.command == "current":
+        alcommand.current(alConfig(url=args.url), verbose=args.verbose)
+    elif args.command == "show":
+        alcommand.show(alConfig(url=args.url), args.revision)
+    elif args.command == "history":
+        alcommand.history(alConfig(url=args.url), args.revrange, verbose=args.verbose)
+    elif args.command == "generate":
+        alcommand.revision(alConfig(url=args.url), message=args.message, head="%s@head"%args.head, autogenerate=True)
+
+if __name__ == '__main__':
+    main()
