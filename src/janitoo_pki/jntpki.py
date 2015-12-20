@@ -23,6 +23,8 @@ __copyright__ = "Copyright © 2013-2014-2015 Sébastien GALLET aka bibi21000"
 import os, sys
 import pki
 from pki.utils import plus_twentyyears
+from M2Crypto import Rand
+from M2Crypto import X509, RSA
 import datetime
 from daemon.pidfile import TimeoutPIDLockFile
 
@@ -85,7 +87,7 @@ class CertificateAuthority(object):
             Get the numeric process ID (“PID”) of the current process
             and write it to the named file as a line of text.
             """
-        open_flags = (os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        open_flags = (os.O_CREAT | os.O_CREAT | os.O_RDWR)
         open_mode = (
             ((os.R_OK | os.W_OK) << 6) |
             ((os.R_OK) << 3) |
@@ -103,7 +105,7 @@ class CertificateAuthority(object):
             line = "%(pid)d\n" % vars()
         else:
             try:
-                pidfile = os.fdopen(pidfile_fd, 'r')
+                pidfile = os.fdopen(pidfile_fd, 'rb')
             except IOError, exc:
                 if exc.errno == errno.ENOENT:
                     pass
@@ -126,7 +128,8 @@ class CertificateAuthority(object):
                     raise PIDFileParseError(
                         "PID file %(pidfile_path)r contents invalid" % vars())
                 pidfile.close()
-            pidfile = os.fdopen(pidfile_fd, 'w')
+            pidfile_fd = os.open(os.path.join(self.data_dir, "serial"), open_flags, open_mode)
+            pidfile = os.fdopen(pidfile_fd, 'wb')
             # According to the FHS 2.3 section on PID files in ‘/var/run’:
             #
             #   The file must consist of the process identifier in
@@ -158,21 +161,36 @@ class CertificateAuthority(object):
         cacert_privkey = RSA.load_key(os.path.join(self.ca_dir, 'ca_privkey.pem'), callback=ca_passphrase_callback)
         return ca_cert, cacert_privkey
 
-    def create_x509_cert(cert_name="client1", cn=None, ca_passphrase_callback=None, passphrase_callback=None):
+    def create_x509_cert(self, cert_name="client1", cn=None, ca_passphrase_callback=None, passphrase_callback=None):
         """"Create an x509 certifiate"""
+        if ca_passphrase_callback is None:
+            ca_passphrase_callback = self.ca_passphrase_callback
+        if passphrase_callback is None:
+            passphrase_callback = self.key_passphrase_callback
         serial_lock = self.serial_lock(self.serial_timeout)
-        if not serial.is_locked():
+        if not serial_lock.is_locked():
+            mynow = datetime.datetime.now()
             serial = self.serial_write()
-            ca_cert, cacert_privkey = self._load_ca(self, ca_passphrase_callback=ca_passphrase_callback)
-            cert, pub, priv = pki.create_x509_certificate(
-                ca_cert, cacert_privkey,
-                cert_passphrase_callback=passphrase_callback,
-                ca_passphrase_callback=ca_passphrase_callback,
-                notbefore=mynow, notafter=plus_twentyyears(mynow),
-                serial=serial,
-                O=self.org, OU=self.ou, L=self.location,
-                CN=cn,
-            )
+            ca_cert, cacert_privkey = self._load_ca(ca_passphrase_callback=ca_passphrase_callback)
+            if cn is not None:
+                cert, pub, priv = pki.create_x509_certificate(
+                    ca_cert, cacert_privkey,
+                    cert_passphrase_callback=passphrase_callback,
+                    ca_passphrase_callback=ca_passphrase_callback,
+                    notbefore=mynow, notafter=plus_twentyyears(mynow),
+                    serial=serial,
+                    O=self.org, OU=self.ou, L=self.location,
+                    CN=cn,
+                )
+            else :
+                cert, pub, priv = pki.create_x509_certificate(
+                    ca_cert, cacert_privkey,
+                    cert_passphrase_callback=passphrase_callback,
+                    ca_passphrase_callback=ca_passphrase_callback,
+                    notbefore=mynow, notafter=plus_twentyyears(mynow),
+                    serial=serial,
+                    O=self.org, OU=self.ou, L=self.location,
+                )
             # the client certificate
             cert.save_pem(os.path.join(self.certs_dir, '%05d_%s_certificate.pem' % (serial, cert_name)))
 
@@ -185,8 +203,8 @@ class CertificateAuthority(object):
             priv.save_key(os.path.join(self.certs_dir, '%05d_%s_private.pem' % (serial, cert_name)), callback=passphrase_callback)
             #Rand.save_file('randpool')
             serial_lock.break_lock()
-            return cert, pub, priv
-        return None, None, None
+            return serial, cert, pub, priv
+        return None, None, None, None
 
     def ca_passphrase_callback(self, *args):
         """the password cannot be blank or the stack fails and you should really

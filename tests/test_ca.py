@@ -61,3 +61,16 @@ class TestPki(JNTTBase, PkiCommon):
         self.assertFile('/%s/%s/ca/ca_certificate.pem' %(ca.options.data['conf_dir'], ca.options.data['service']))
         self.assertFile('/%s/%s/ca/ca_pubkey.pem' %(ca.options.data['conf_dir'], ca.options.data['service']))
         self.assertFile('/%s/%s/ca/ca_privkey.pem' %(ca.options.data['conf_dir'], ca.options.data['service']))
+
+    def test_011_create_x509(self):
+        ca = self.create_ca()
+        cert_name="client1"
+        serial, cert, pub, priv = ca.create_x509_cert(cert_name=cert_name, cn=None)
+        self.assertFile('/%s/%s/certs/%05d_%s_certificate.pem'%(ca.options.data['conf_dir'], ca.options.data['service'], serial, cert_name))
+        self.assertFile('/%s/%s/certs/%05d_%s_private.pem'%(ca.options.data['conf_dir'], ca.options.data['service'], serial, cert_name))
+        self.assertFile('/%s/%s/certs/%05d_%s_public.pem'%(ca.options.data['conf_dir'], ca.options.data['service'], serial, cert_name))
+        cert_name="client2"
+        serial, cert, pub, priv = ca.create_x509_cert(cert_name=cert_name, cn="me")
+        self.assertFile('/%s/%s/certs/%05d_%s_certificate.pem'%(ca.options.data['conf_dir'], ca.options.data['service'], serial, cert_name))
+        self.assertFile('/%s/%s/certs/%05d_%s_private.pem'%(ca.options.data['conf_dir'], ca.options.data['service'], serial, cert_name))
+        self.assertFile('/%s/%s/certs/%05d_%s_public.pem'%(ca.options.data['conf_dir'], ca.options.data['service'], serial, cert_name))
