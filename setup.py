@@ -90,7 +90,7 @@ setup(
     data_files = data_files,
     install_requires=[
                     'janitoo',
-                    'M2Crypto == 0.21.1',
+                    'M2Crypto == 0.22.3',
                     'pki',
                     ],
     dependency_links = [
