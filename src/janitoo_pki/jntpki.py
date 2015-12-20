@@ -24,8 +24,7 @@ import os, sys
 import pki
 from pki.utils import plus_twentyyears
 import datetime
-
-now = datetime.datetime.now
+from daemon.pidfile import TimeoutPIDLockFile
 
 class CertificateAuthority(object):
     """The Certificate authorithy
@@ -36,14 +35,19 @@ class CertificateAuthority(object):
         """
         self.options = options
         self.org = kwargs.get("org", "My organization")
+        self.ou = kwargs.get("ou", "My organizational unit")
         self.location = kwargs.get("location", "My location")
         self.caname = kwargs.get("caname", "My Certificate Authority")
+        self.serial_timeout = kwargs.get("serial_timeout", 10)
         self.data_dir = os.path.join(options.data['conf_dir'], options.data['service'])
         if not os.path.exists(self.data_dir):
             os.makedirs(self.data_dir)
         self.ca_dir = os.path.join(self.data_dir, "ca")
         if not os.path.exists(self.ca_dir):
             os.makedirs(self.ca_dir)
+        self.certs_dir = os.path.join(self.data_dir, "certs")
+        if not os.path.exists(self.certs_dir):
+            os.makedirs(self.certs_dir)
 
     def init_ca(self, callback=None):
         """Create the Authority.
@@ -52,13 +56,102 @@ class CertificateAuthority(object):
            It should return a string"""
         if callback is None:
             callback = self.ca_passphrase_callback
-        ca_cert, cacert_pubkey, cacert_privkey = self._create_ca(callback)
-        ca_cert.save_pem(os.path.join(self.ca_dir, 'ca_certificate.pem'))
-        cacert_pubkey.save_key(os.path.join(self.ca_dir, 'ca_pubkey.pem'))
-        # for convenience we use the same password callback, but you could
-        # set whatever password here, this is the password that will be required
-        # to load the private key from disk again.
-        cacert_privkey.save_key(os.path.join(self.ca_dir, 'ca_privkey.pem'), callback=callback)
+        serial = self.serial_lock(self.serial_timeout)
+        if not serial.is_locked():
+            ca_cert, cacert_pubkey, cacert_privkey = self._create_ca(callback)
+            ca_cert.save_pem(os.path.join(self.ca_dir, 'ca_certificate.pem'))
+            cacert_pubkey.save_key(os.path.join(self.ca_dir, 'ca_pubkey.pem'))
+            # for convenience we use the same password callback, but you could
+            # set whatever password here, this is the password that will be required
+            # to load the private key from disk again.
+            cacert_privkey.save_key(os.path.join(self.ca_dir, 'ca_privkey.pem'), callback=callback)
+            self.serial_write(0)
+            serial.break_lock()
+
+    def serial_lock(self, acquire_timeout=10):
+        """Make a PIDLockFile instance with the given filesystem path.
+        """
+        if not isinstance(os.path.join(self.data_dir, "serial.lock"), basestring):
+            error = ValueError("Not a filesystem path: %(path)r" % vars())
+            raise error
+        if not os.path.isabs(os.path.join(self.data_dir, "serial.lock")):
+            error = ValueError("Not an absolute path: %(path)r" % vars())
+            raise error
+        lockfile = TimeoutPIDLockFile(os.path.join(self.data_dir, "serial.lock"), acquire_timeout)
+        return lockfile
+
+    def serial_write(self, value=None):
+        """ Write the PID in the named PID file.
+            Get the numeric process ID (“PID”) of the current process
+            and write it to the named file as a line of text.
+            """
+        open_flags = (os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        open_mode = (
+            ((os.R_OK | os.W_OK) << 6) |
+            ((os.R_OK) << 3) |
+            ((os.R_OK)))
+        pidfile_fd = os.open(os.path.join(self.data_dir, "serial"), open_flags, open_mode)
+        if value is not None:
+            pidfile = os.fdopen(pidfile_fd, 'w')
+
+            # According to the FHS 2.3 section on PID files in ‘/var/run’:
+            #
+            #   The file must consist of the process identifier in
+            #   ASCII-encoded decimal, followed by a newline character. For
+            #   example, if crond was process number 25, /var/run/crond.pid
+            #   would contain three characters: two, five, and newline.
+
+            pid = value
+            line = "%(pid)d\n" % vars()
+        else:
+            try:
+                pidfile = os.fdopen(pidfile_fd, 'r')
+            except IOError, exc:
+                if exc.errno == errno.ENOENT:
+                    pass
+                else:
+                    raise
+
+            if pidfile:
+                # According to the FHS 2.3 section on PID files in ‘/var/run’:
+                #
+                #   The file must consist of the process identifier in
+                #   ASCII-encoded decimal, followed by a newline character. …
+                #
+                #   Programs that read PID files should be somewhat flexible
+                #   in what they accept; i.e., they should ignore extra
+                #   whitespace, leading zeroes, absence of the trailing
+                #   newline, or additional lines in the PID file.
+
+                line = pidfile.readline().strip()
+                try:
+                    value = int(line)+1
+                except ValueError:
+                    raise PIDFileParseError(
+                        "PID file %(pidfile_path)r contents invalid" % vars())
+                pidfile.close()
+
+            pidfile = os.fdopen(pidfile_fd, 'w')
+
+            # According to the FHS 2.3 section on PID files in ‘/var/run’:
+            #
+            #   The file must consist of the process identifier in
+            #   ASCII-encoded decimal, followed by a newline character. For
+            #   example, if crond was process number 25, /var/run/crond.pid
+            #   would contain three characters: two, five, and newline.
+
+            pid = value
+            line = "%(pid)d\n" % vars()
+
+            return pid
+
+        pidfile.write(line)
+        pidfile.close()
+
+
+    def serial(self, value=None):
+        """Manage serial of the pki"""
+        pass
 
     def _create_ca(self, passphrase_callback):
         mynow = datetime.datetime.now()
@@ -68,13 +161,52 @@ class CertificateAuthority(object):
             O=self.org,
             L=self.location,
             CN=self.caname)
-
         return ca_cert, cacert_pubkey, cacert_privkey
+
+    def _load_ca(self, ca_passphrase_callback=None, passphrase_callback=None):
+        f = open(os.path.join(self.ca_dir, 'ca_certificate.pem'), 'r')
+        ca_cert_content = f.read()
+        ca_cert = X509.load_cert_string(ca_cert_content)
+
+        cacert_privkey = RSA.load_key(os.path.join(self.ca_dir, 'ca_privkey.pem'), callback=ca_passphrase_callback)
+
+        # serial should be autocalculated from the repository of existing (past and present) keys
+        serial = 3
+        cert, pub, priv = create_x509_cert(ca_cert, cacert_privkey, serial)
+
+        mynow = datetime.datetime.now()
+        ca_cert, cacert_pubkey, cacert_privkey = pki.create_certificate_authority(
+            passphrase_callback=passphrase_callback,
+            notbefore=mynow, notafter=plus_twentyyears(mynow),
+            O=self.org,
+            L=self.location,
+            CN=self.caname)
+        return ca_cert, cacert_pubkey, cacert_privkey
+
+    def create_x509_cert(ca_cert, cacert_privkey):
+        mynow = datetime.datetime.now()
+        cert, pub, priv = pki.create_x509_certificate(
+            ca_cert, cacert_privkey,
+            cert_passphrase_callback=passphrase_callback,
+            ca_passphrase_callback=ca_passphrase_callback,
+            notbefore=mynow, notafter=plus_twentyyears(mynow),
+            serial=1,
+            O=self.org, L=self.location,
+            CN=my_certname,
+        )
+
+        return cert, pub, priv
 
     def ca_passphrase_callback(self, *args):
         """the password cannot be blank or the stack fails and you should really
         give some more secure and complicated password.
         """
         return "ABADKEY"
+
+    def key_passphrase_callback(self, *args):
+        """the password cannot be blank or the stack fails and you should really
+        give some more secure and complicated password.
+        """
+        return "ANOTHERBADKEY"
 
 
