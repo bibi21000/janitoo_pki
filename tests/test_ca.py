@@ -43,18 +43,21 @@ from janitoo_pki.jntpki import CertificateAuthority
 class PkiCommon(object):
     """Test flask
     """
-    ca_conf = "tests/data/ca.conf"
+    ca_conf = "tests/data/janitoo_pki.conf"
 
     def create_ca(self):
-        ca = CertificateAuthority()
+        options = JNTOptions({'conf_file':self.ca_conf})
+        options.load()
+        ca = CertificateAuthority(options=options)
         ca.init_ca()
         return ca
+
 
 class TestPki(JNTTBase, PkiCommon):
     """Test Pki
     """
     def test_001_create_ca(self):
         ca = self.create_ca()
-        self.assertFile('/opt/janitoo/etc/janitoo_pki/ca/ca_certificate.pem')
-        self.assertFile('/opt/janitoo/etc/janitoo_pki/ca/ca_pubkey.pem')
-        self.assertFile('/opt/janitoo/etc/janitoo_pki/ca/ca_privkey.pem')
+        self.assertFile('/%s/%s/ca/ca_certificate.pem' %(ca.options.data['conf_dir'], ca.options.data['service']))
+        self.assertFile('/%s/%s/ca/ca_pubkey.pem' %(ca.options.data['conf_dir'], ca.options.data['service']))
+        self.assertFile('/%s/%s/ca/ca_privkey.pem' %(ca.options.data['conf_dir'], ca.options.data['service']))

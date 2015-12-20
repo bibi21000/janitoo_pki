@@ -31,13 +31,14 @@ class CertificateAuthority(object):
     """The Certificate authorithy
     """
 
-    def __init__(self, options={}, **kwargs):
+    def __init__(self, options=None, **kwargs):
         """
         """
+        self.options = options
         self.org = kwargs.get("org", "My organization")
-        self.location = kwargs.get("org", "My location")
-        self.caname = kwargs.get("org", "My Certificate Authority")
-        self.data_dir = "/opt/janitoo/etc/janitoo_pki"
+        self.location = kwargs.get("location", "My location")
+        self.caname = kwargs.get("caname", "My Certificate Authority")
+        self.data_dir = os.path.join(options.data['conf_dir'], options.data['service'])
         if not os.path.exists(self.data_dir):
             os.makedirs(self.data_dir)
         self.ca_dir = os.path.join(self.data_dir, "ca")
