@@ -36,7 +36,8 @@ ifeq (${python_version_major},3)
 endif
 
 MODULENAME   = $(shell basename `pwd`)
-NOSEMODULES   = janitoo,janitoo_factory,janitoo_db
+NOSEMODULES  = janitoo,janitoo_factory,janitoo_db
+MOREMODULES  = janitoo_factory_ext
 
 NOSECOVER     = --cover-package=janitoo,janitoo_db,${MODULENAME} --cover-min-percentage= --with-coverage --cover-inclusive --cover-html --cover-html-dir=${BUILDDIR}/docs/html/tools/coverage --with-html --html-file=${BUILDDIR}/docs/html/tools/nosetests/index.html
 
@@ -47,8 +48,8 @@ TAGGED := $(shell git tag | grep -c v${janitoo_version} )
 
 -include Makefile.local
 
-NOSECOVER     = --cover-package=${NOSEMODULES},${MODULENAME} --with-coverage --cover-inclusive --cover-html --cover-html-dir=${BUILDDIR}/docs/html/tools/coverage --with-html --html-file=${BUILDDIR}/docs/html/tools/nosetests/index.html
-NOSEDOCKER     = --cover-package=${NOSEMODULES},${MODULENAME} --with-coverage --cover-inclusive --with-xunit --xunit-testsuite-name=${MODULENAME}
+NOSECOVER     = --cover-package=${MODULENAME} --with-coverage --cover-inclusive --cover-html --cover-html-dir=${BUILDDIR}/docs/html/tools/coverage --with-html --html-file=${BUILDDIR}/docs/html/tools/nosetests/index.html
+NOSEDOCKER     = --cover-package=${NOSEMODULES},${MODULENAME},${MOREMODULES} --with-coverage --cover-inclusive --with-xunit --xunit-testsuite-name=${MODULENAME}
 
 .PHONY: help check-tag clean all build develop install uninstall clean-doc doc certification tests pylint deps docker-tests
 
@@ -90,7 +91,7 @@ clean-doc:
 	-rm -Rf ${BUILDDIR}/janidoc
 
 janidoc:
-	ln -s /opt/janitoo/src/janidoc janidoc
+	ln -s /opt/janitoo/src/janitoo_sphinx janidoc
 
 apidoc:
 	-rm -rf ${BUILDDIR}/janidoc/source/api
@@ -125,6 +126,11 @@ develop:
 	@echo
 	@echo "Installation for developpers of ${MODULENAME} finished."
 
+directories:
+	-mkdir /opt/janitoo
+	-for dir in cache cache/janitoo_manager home log run etc init; do mkdir /opt/janitoo/$$dir; done
+	-chown -Rf ${USER}:${USER} /opt/janitoo
+
 travis-deps: deps
 	git clone https://github.com/bibi21000/janitoo_mosquitto.git
 	make -C janitoo_mosquitto deps
@@ -133,6 +139,15 @@ travis-deps: deps
 	pip install coveralls
 	@echo
 	@echo "Travis dependencies for ${MODULENAME} installed."
+
+docker-deps:
+	-test -d docker/config && cp -rf docker/config/* /opt/janitoo/etc/
+	-test -d docker/supervisor.conf.d && cp -rf docker/supervisor.conf.d/* /etc/supervisor/janitoo.conf.d/
+	-test -d docker/supervisor-tests.conf.d && cp -rf docker/supervisor-tests.conf.d/* /etc/supervisor/janitoo-tests.conf.d/
+	-test -d docker/nginx && cp -rf docker/nginx/* /etc/nginx/conf.d/
+	true
+	@echo
+	@echo "Docker dependencies for ${MODULENAME} installed."
 
 docker-tests:
 	@echo
@@ -172,8 +187,7 @@ commit:
 	-git add rst/
 	-cp rst/README.rst .
 	-git add README.rst
-	-git commit -m "$(message)" -a
-	git push
+	git commit -m "$(message)" -a && git push
 	@echo
 	@echo "Commits for branch master pushed on github."
 
