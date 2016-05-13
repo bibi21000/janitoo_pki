@@ -1,0 +1,22 @@
+janitoo_pki package
+===================
+
+Submodules
+----------
+
+janitoo_pki.jntpki module
+-------------------------
+
+.. automodule:: janitoo_pki.jntpki
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: janitoo_pki
+    :members:
+    :undoc-members:
+    :show-inheritance:
