@@ -110,58 +110,8 @@
 <div class="section" id="submodules">
 <h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
 </div>
-<div class="section" id="module-janitoo_pki.jntpki">
-<span id="janitoo-pki-jntpki-module"></span><h2>janitoo_pki.jntpki module<a class="headerlink" href="#module-janitoo_pki.jntpki" title="Permalink to this headline">¶</a></h2>
-<dl class="class">
-<dt id="janitoo_pki.jntpki.CertificateAuthority">
-<em class="property">class </em><tt class="descclassname">janitoo_pki.jntpki.</tt><tt class="descname">CertificateAuthority</tt><big>(</big><em>options=None</em>, <em>**kwargs</em><big>)</big><a class="reference internal" href="../_modules/janitoo_pki/jntpki.html#CertificateAuthority"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#janitoo_pki.jntpki.CertificateAuthority" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <a class="reference external" href="http://docs.python.org/library/functions.html#object" title="(in Python v2.7)"><tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></a></p>
-<p>The Certificate authorithy</p>
-<dl class="method">
-<dt id="janitoo_pki.jntpki.CertificateAuthority.ca_passphrase_callback">
-<tt class="descname">ca_passphrase_callback</tt><big>(</big><em>*args</em><big>)</big><a class="reference internal" href="../_modules/janitoo_pki/jntpki.html#CertificateAuthority.ca_passphrase_callback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#janitoo_pki.jntpki.CertificateAuthority.ca_passphrase_callback" title="Permalink to this definition">¶</a></dt>
-<dd><p>the password cannot be blank or the stack fails and you should really
-give some more secure and complicated password.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="janitoo_pki.jntpki.CertificateAuthority.create_x509_cert">
-<tt class="descname">create_x509_cert</tt><big>(</big><em>cert_name='client1'</em>, <em>cn=None</em>, <em>ca_passphrase_callback=None</em>, <em>passphrase_callback=None</em><big>)</big><a class="reference internal" href="../_modules/janitoo_pki/jntpki.html#CertificateAuthority.create_x509_cert"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#janitoo_pki.jntpki.CertificateAuthority.create_x509_cert" title="Permalink to this definition">¶</a></dt>
-<dd><p>&#8220;Create an x509 certifiate</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="janitoo_pki.jntpki.CertificateAuthority.init_ca">
-<tt class="descname">init_ca</tt><big>(</big><em>callback=None</em><big>)</big><a class="reference internal" href="../_modules/janitoo_pki/jntpki.html#CertificateAuthority.init_ca"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#janitoo_pki.jntpki.CertificateAuthority.init_ca" title="Permalink to this definition">¶</a></dt>
-<dd><p>Create the Authority.
-A callback to define the password is needed. The password cannot be blank or the stack fails and
-you should really give some more secure and complicated password.
-It should return a string</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="janitoo_pki.jntpki.CertificateAuthority.key_passphrase_callback">
-<tt class="descname">key_passphrase_callback</tt><big>(</big><em>*args</em><big>)</big><a class="reference internal" href="../_modules/janitoo_pki/jntpki.html#CertificateAuthority.key_passphrase_callback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#janitoo_pki.jntpki.CertificateAuthority.key_passphrase_callback" title="Permalink to this definition">¶</a></dt>
-<dd><p>the password cannot be blank or the stack fails and you should really
-give some more secure and complicated password.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="janitoo_pki.jntpki.CertificateAuthority.serial_lock">
-<tt class="descname">serial_lock</tt><big>(</big><em>acquire_timeout=10</em><big>)</big><a class="reference internal" href="../_modules/janitoo_pki/jntpki.html#CertificateAuthority.serial_lock"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#janitoo_pki.jntpki.CertificateAuthority.serial_lock" title="Permalink to this definition">¶</a></dt>
-<dd><p>Make a PIDLockFile instance with the given filesystem path.</p>
-</dd></dl>
-
-<dl class="method">
-<dt id="janitoo_pki.jntpki.CertificateAuthority.serial_write">
-<tt class="descname">serial_write</tt><big>(</big><em>value=None</em><big>)</big><a class="reference internal" href="../_modules/janitoo_pki/jntpki.html#CertificateAuthority.serial_write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#janitoo_pki.jntpki.CertificateAuthority.serial_write" title="Permalink to this definition">¶</a></dt>
-<dd><p>Write the PID in the named PID file.
-Get the numeric process ID (“PID”) of the current process
-and write it to the named file as a line of text.</p>
-</dd></dl>
-
-</dd></dl>
-
+<div class="section" id="janitoo-pki-jntpki-module">
+<h2>janitoo_pki.jntpki module<a class="headerlink" href="#janitoo-pki-jntpki-module" title="Permalink to this headline">¶</a></h2>
 </div>
 <div class="section" id="module-janitoo_pki">
 <span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-janitoo_pki" title="Permalink to this headline">¶</a></h2>
@@ -180,7 +130,7 @@ and write it to the named file as a line of text.</p>
       
     </p>
     <p>
-        &copy; Copyright 2015,2016 Sébastien GALLET aka bibi2100 &lt;bibi21000@gmail.com&gt;.<br/>
+        &copy; Copyright 2014,2015,2016 Sébastien GALLET aka bibi2100 &lt;bibi21000@gmail.com&gt;.<br/>
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.<br/>
     </p>
   </div>
